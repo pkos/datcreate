@@ -28,7 +28,7 @@ my @alllinesout;
 #check command line
 foreach my $argument (@ARGV) {
   if ($argument =~ /\Q$substringh\E/) {
-    print "datcreate v0.5 - Utility to compare No-Intro or Redump dat files to the -converted- rom or disc\n";
+    print "datcreate v0.6 - Utility to compare No-Intro or Redump dat files to the -converted- rom or disc\n";
     print "                 collection (by name) and create an XML database of hashses (crc32, md5, sha1) from\n";
     print "                 the derivatives of original games hashes.\n";
   	print "\n";
@@ -36,7 +36,7 @@ foreach my $argument (@ARGV) {
 	print "\n";
 	print "Options:\n";
 	print "  -r    Redump source dat\n";
-	print "  -n    No-intro source dat\n";
+	print "  -n    No-Intro source dat\n";
 	print "\n";
 	print "Example:\n";
 	print '              datcreate -r "D:/Atari - 2600.dat" "D:/Atari - 2600/Games" "Atari - 2600" "maxcso_1_12_0"' . "\n";
@@ -87,7 +87,7 @@ while (my $readline = <FILE>) {
       $datbincue = "TRUE";
    }
 }
-my @sorteddatfile = sort @linesdat;
+my @sorteddatfile = @linesdat;
 close (FILE);
 
 #read games directory contents
@@ -140,6 +140,7 @@ my $filemd5;
 my $filesha1;
 my $gamefileext;
 my $datfileext;
+my $cuedatline;
 my $totalmatches = 0;
 my $totalmisses = 0;
 my $totalmissesfiles = 0;
@@ -162,7 +163,7 @@ my $progress = Term::ProgressBar->new({name => 'progress', count => $max});
 OUTER: foreach my $gameline (@linesgames)
 {
    $progress->update($_);
-   $p++;	
+   $p++;
    
    #parse game name
    if (index(lc $gameline, ".m3u") == -1)
@@ -198,11 +199,12 @@ OUTER: foreach my $gameline (@linesgames)
       close $fh;
       $filesha1 = lc $ctx->hexdigest;
 	  
+	  $match = 0;
 	  foreach my $datline (@sorteddatfile) 
       {
          if (index(lc $datline, "<rom name=") != -1)
          {
-	        if (($datbincue eq "TRUE" and index(lc $datline, ".bin") == -1) or $datbincue eq "FALSE")
+	        if ($datbincue eq "FALSE")
             {	  
 		       #parse rom name
                $resultromstart = index($datline, '<rom name="');
@@ -261,9 +263,86 @@ OUTER: foreach my $gameline (@linesgames)
                   print FILE '    </game>' . "\n";	  
                   next OUTER;
                }
-            }
+			}
          }
       }
+      
+	  $match = 0;
+      foreach my $datline (@sorteddatfile)
+      {
+         if (index(lc $datline, "<rom name=") != -1)
+         {
+	        if ($datbincue eq "TRUE")
+            {
+	           #parse rom name
+               $resultromstart = index($datline, '<rom name="');
+               $resultromend = index($datline, 'size="');
+               $extpos = rindex $datline, ".";  
+               $quotepos = rindex $datline, '"', $resultromend;
+               my $length = ($resultromend)  - ($resultromstart + 12);
+               $datfileext = substr($datline, $extpos, $quotepos - $extpos);
+               $romname  = substr($datline, $resultromstart + 11, $length - ($quotepos - $extpos + 1));
+               $romname =~ s/amp;//g; #clean '&' in the dat file
+
+               #parse size
+		       $resultromstart = index($datline, 'size="');
+		       $resultromend = index($datline, 'crc="');
+		       $length = ($resultromend)  - ($resultromstart + 7);
+		       $datsize = substr($datline, $resultromstart + 6, $length - 1);
+         
+		       #parse crc
+		       $resultromstart = index($datline, 'crc="');
+		       $resultromend = index($datline, 'md5="');
+		       $length = ($resultromend)  - ($resultromstart + 6);
+		       $datcrc = substr($datline, $resultromstart + 5, $length - 1);
+
+               #parse md5
+		       $resultromstart = index($datline, 'md5="');
+		       $resultromend = index($datline, 'sha1="');
+		       $length = ($resultromend)  - ($resultromstart + 6);
+		       $datmd5 = substr($datline, $resultromstart + 5, $length - 1);
+
+               #parse sha1
+		       $resultromstart = index($datline, 'sha1="');
+		       $resultromend = index($datline, '"/>');
+		       $length = ($resultromend)  - ($resultromstart + 7);
+		       $datsha1 = substr($datline, $resultromstart + 6, $length + 1); 
+
+		       #check for .cue substring and write to dat
+               if (index(lc $datline, lc $gamename . ".cue") != -1)
+               {
+                  $totalmatches++;
+			      push(@alllinesout, ["MATCHED: ", "$gamename$gamefileext"]);
+		       
+			      #write dat entry up to cue name
+		          my $tempsource = "";
+		          if ($redump eq "TRUE")
+		          {
+                     $tempsource = "Redump";
+                  } elsif ($nointro eq "TRUE") {
+                     $tempsource = "No-Intro";
+                  }        
+		          print FILE '    <game name="' . $romname . '">' . "\n";
+                  print FILE '        <description>' . $romname . '</description>' . "\n";
+               }
+
+               #check for substring match between dat romname and gamename 
+               if (index(lc $datline, lc $gamename) != -1)
+               {
+				  my $tempsource = "";
+		          if ($redump eq "TRUE")
+		          {
+                     $tempsource = "Redump";
+                  } elsif ($nointro eq "TRUE") {
+                     $tempsource = "No-Intro";
+                  } 
+                  print FILE '        <source name="' . $romname . $datfileext . '" type="' . $tempsource . '" size="' . $datsize . '" crc="' . $datcrc . '" md5="' . $datmd5 . '" sha1="' . $datsha1 . '"/>' . "\n";
+               }
+			}
+		 }
+      }
+      print FILE '        <rom name="' . $gamename . $gamefileext . '" type="' . $process . '" size="' . $filesize . '" crc="' . $filecrc . '" md5="' . $filemd5 . '" sha1="' . $filesha1 . '"/>' . "\n";
+      print FILE '    </game>' . "\n";		  
    }
 }
 
