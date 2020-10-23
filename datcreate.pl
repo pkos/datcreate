@@ -28,7 +28,7 @@ my @alllinesout;
 #check command line
 foreach my $argument (@ARGV) {
   if ($argument =~ /\Q$substringh\E/) {
-    print "datcreate v0.7 - Utility to compare No-Intro or Redump dat files to the -converted- rom or disc\n";
+    print "datcreate v0.8 - Utility to compare No-Intro or Redump dat files to the -converted- rom or disc\n";
     print "                 collection (by name) and create an XML database of hashses (crc32, md5, sha1) from\n";
     print "                 the derivatives of original games hashes.\n";
   	print "\n";
@@ -111,6 +111,8 @@ my $date = strftime "%Y-%m-%d %H-%M-%S", localtime;
 
 #write XML header
 open(FILE, '>', "$system ($date).dat") or die "Could not open file '$system ($date).dat' $!";
+print FILE '<?xml version="1.0"?>' . "\n";
+print FILE '<!DOCTYPE datafile PUBLIC "-//Logiqx//DTD ROM Management Datafile//EN" "http://www.logiqx.com/Dats/datafile.dtd">' . "\n";
 print FILE "<datafile>\n";
 print FILE "    <header>\n";
 print FILE "        <name>$system</name>\n";
@@ -174,8 +176,9 @@ OUTER: foreach my $gameline (@linesgames)
       my $suffixlength = $length - $rightdot;
       $gamefileext = substr($gameline, $rightdot, $suffixlength);
       $gamename  = substr($gameline, 0, $length - $suffixlength);
-
-      #calculate size
+      $gamename =~ s/amp;//g;
+      
+	  #calculate size
       $filesize = (stat $discdirectory . "/" . $gameline)[7];
       
 	  #calculate crc	
@@ -256,6 +259,9 @@ OUTER: foreach my $gameline (@linesgames)
                      $tempsource = "No-Intro";
 				  }
 				  
+				  $romname =~ s/&/&amp;/g;
+				  $gamename =~ s/&/&amp;/g;
+				  
                   print FILE '    <game name="' . $romname . '">' . "\n";
                   print FILE '        <description>' . $romname . '</description>' . "\n";
                   print FILE '        <source name="' . $romname . $datfileext . '" type="' . $tempsource . '" size="' . $datsize . '" crc="' . $datcrc . '" md5="' . $datmd5 . '" sha1="' . $datsha1 . '"/>' . "\n";
@@ -311,7 +317,9 @@ OUTER: foreach my $gameline (@linesgames)
 		       $length = ($resultromend)  - ($resultromstart + 7);
 		       $datsha1 = substr($datline, $resultromstart + 6, $length + 1); 
 
-		       #check for .cue substring and write to dat
+               $romname =~ s/&/&amp;/g;
+		       
+			   #check for .cue substring and write to dat
                if (index(lc $datline, lc $gamename . ".cue") != -1)
                {
                   $totalmatches++;
@@ -344,6 +352,7 @@ OUTER: foreach my $gameline (@linesgames)
 			}
 		 }
       }
+	  $gamename =~ s/&/&amp;/g;
       print FILE '        <rom name="' . $gamename . $gamefileext . '" type="' . $process . '" size="' . $filesize . '" crc="' . $filecrc . '" md5="' . $filemd5 . '" sha1="' . $filesha1 . '"/>' . "\n";
       print FILE '    </game>' . "\n";		  
    }

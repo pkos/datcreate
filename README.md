@@ -1,4 +1,4 @@
-datcreate v0.7 - Utility to compare No-Intro or Redump dat files to the -converted- rom or disc
+datcreate v0.8 - Utility to compare No-Intro or Redump dat files to the -converted- rom or disc
                  collection (by name) and create an XML database of hashses (crc32, md5, sha1) from
                  the derivatives of original games hashes.
 
