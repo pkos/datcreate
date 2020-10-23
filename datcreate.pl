@@ -28,7 +28,7 @@ my @alllinesout;
 #check command line
 foreach my $argument (@ARGV) {
   if ($argument =~ /\Q$substringh\E/) {
-    print "datcreate v0.6 - Utility to compare No-Intro or Redump dat files to the -converted- rom or disc\n";
+    print "datcreate v0.7 - Utility to compare No-Intro or Redump dat files to the -converted- rom or disc\n";
     print "                 collection (by name) and create an XML database of hashses (crc32, md5, sha1) from\n";
     print "                 the derivatives of original games hashes.\n";
   	print "\n";
@@ -274,6 +274,9 @@ OUTER: foreach my $gameline (@linesgames)
          {
 	        if ($datbincue eq "TRUE")
             {
+			   #clean '&' in the dat file
+			   $datline =~ s/amp;//g; #clean '&' in the dat file
+				
 	           #parse rom name
                $resultromstart = index($datline, '<rom name="');
                $resultromend = index($datline, 'size="');
