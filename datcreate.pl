@@ -28,7 +28,7 @@ my @alllinesout;
 #check command line
 foreach my $argument (@ARGV) {
   if ($argument =~ /\Q$substringh\E/) {
-    print "datcreate v0.8 - Utility to compare No-Intro or Redump dat files to the -converted- rom or disc\n";
+    print "datcreate v0.9 - Utility to compare No-Intro or Redump dat files to the -converted- rom or disc\n";
     print "                 collection (by name) and create an XML database of hashses (crc32, md5, sha1) from\n";
     print "                 the derivatives of original games hashes.\n";
   	print "\n";
@@ -195,12 +195,31 @@ OUTER: foreach my $gameline (@linesgames)
       close $fh;
       $filemd5 = lc $ctx->hexdigest;
 	  
-	  #calculate sha1
-      open ($fh, '<:raw', $discdirectory . "/" . $gameline) or die $!;
-	  $ctx = Digest::SHA1->new;
-      $ctx->addfile(*$fh);
-      close $fh;
-      $filesha1 = lc $ctx->hexdigest;
+	  #calculate sha1 or extract data sha1 if chd file
+	  if (lc $gamefileext eq ".chd")
+	  {
+         open(CHD, '<:raw', $discdirectory . "/" . $gameline) or die $!;
+         binmode CHD;
+		 
+		 #seek and read
+         my $offset = 0x0000;
+         seek CHD, $offset, 0;
+         my $count = read CHD, my $rawheader, 124;
+		 close CHD;
+         if ($count != 124)
+         {
+            print "Invalid CHD header.. exiting.";
+			exit;
+         }
+		 $filesha1 = substr($rawheader, 84, 20);
+         $filesha1 =~ s/(.)/sprintf '%02x', ord $1/seg;
+      } else {
+         open ($fh, '<:raw', $discdirectory . "/" . $gameline) or die $!;
+	     $ctx = Digest::SHA1->new;
+         $ctx->addfile(*$fh);
+         close $fh;
+         $filesha1 = lc $ctx->hexdigest;
+      }
 	  
 	  $match = 0;
 	  foreach my $datline (@sorteddatfile) 
